@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FoolTheBot</title>
+<style>
+  :root {
+    --win:    #f3f3f3;
+    --panel:  #ffffff;
+    --head:   #fbfbfb;
+    --border: #c9c9c9;
+    --border2:#e3e3e3;
+    --text:   #1f1f1f;
+    --muted:  #5f5f5f;
+    --accent: #0067c0;
+    --accent-d:#005ba1;
+    --row-alt:#f7f8fa;
+    --pass:   #0f7b3f;
+    --fail:   #c22e1f;
+    --suspect:#9a6a00;
+    --crit:   #a21b0f;
+    --high:   #b5500a;
+    --med:    #9a6a00;
+    --mono: Consolas, "Courier New", monospace;
+    --ui: "Segoe UI", Tahoma, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--win); color: var(--text);
+    font: 13px/1.45 var(--ui);
+  }
+
+  /* title bar */
+  .titlebar {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 7px 12px;
+  }
+  .titlebar .mark { width: 15px; height: 15px; background: var(--accent); border-radius: 2px; }
+  .titlebar .name { font-weight: 600; font-size: 13px; }
+  .titlebar .ver { color: var(--muted); font-size: 12px; }
+  .titlebar .right { margin-left: auto; color: var(--muted); font-size: 12px; font-family: var(--mono); }
+
+  /* toolbar */
+  .toolbar {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    background: var(--head); border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+  }
+  .tb-group { display: flex; align-items: center; gap: 6px; }
+  .tb-group > label { color: var(--muted); font-size: 12px; }
+  select {
+    font: 13px var(--ui); color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 3px; padding: 4px 7px; min-width: 210px;
+  }
+  select:disabled { color: #9a9a9a; background: #f0f0f0; }
+  .check { display: flex; align-items: center; gap: 5px; }
+  .check input { margin: 0; }
+  .check label { color: var(--text); font-size: 12px; }
+  button.run {
+    font: 600 13px var(--ui); color: #fff; background: var(--accent);
+    border: 1px solid var(--accent-d); border-radius: 3px; padding: 5px 16px; cursor: pointer;
+  }
+  button.run:hover:not(:disabled) { background: var(--accent-d); }
+  button.run:disabled { background: #b9b9b9; border-color: #a9a9a9; cursor: default; }
+  .tb-sep { margin-left: auto; }
+
+  .mode-pill {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 3px; padding: 2px 7px; background: var(--panel);
+  }
+
+  /* main content */
+  .content { padding: 12px; }
+
+  /* stats strip */
+  .stats { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tile {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 3px;
+    padding: 9px 14px; min-width: 104px;
+  }
+  .tile .v { font-size: 22px; font-weight: 600; font-family: var(--mono); line-height: 1.1; }
+  .tile .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin-top: 2px; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 3px;
+    margin-bottom: 12px;
+  }
+  .panel > .ph {
+    font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .4px; padding: 7px 12px; border-bottom: 1px solid var(--border2); background: var(--head);
+  }
+
+  /* category breakdown */
+  .cats { padding: 8px 12px; }
+  .cat { display: grid; grid-template-columns: 180px 1fr 54px; gap: 12px; align-items: center; padding: 3px 0; }
+  .cat .name { font-size: 12.5px; }
+  .bar { height: 12px; background: #eee; border: 1px solid var(--border2); border-radius: 2px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; }
+  .cat .frac { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; }
+
+  /* results table */
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    position: sticky; top: 0; background: var(--head); text-align: left;
+    font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .3px;
+    padding: 7px 10px; border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 6px 10px; border-bottom: 1px solid var(--border2); vertical-align: top; }
+  tbody tr.row { cursor: pointer; }
+  tbody tr.row:nth-child(4n+1) { background: var(--row-alt); }
+  tbody tr.row:hover { background: #eef4fb; }
+  td.c-tw { width: 26px; color: var(--muted); font-family: var(--mono); }
+  td.c-id { width: 54px; font-family: var(--mono); font-weight: 600; }
+  td.c-cat { width: 180px; font-family: var(--mono); color: var(--muted); font-size: 12px; }
+  td.c-sev { width: 78px; }
+  td.c-verdict { width: 72px; }
+  td.c-detail { color: var(--muted); }
+
+  .vd { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
+  .vd .sq { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .vd.pass { color: var(--pass); } .vd.pass .sq { background: var(--pass); }
+  .vd.fail { color: var(--fail); } .vd.fail .sq { background: var(--fail); }
+  .vd.suspect { color: var(--suspect); } .vd.suspect .sq { background: var(--suspect); }
+
+  .sevtag { font-family: var(--mono); font-size: 11px; }
+  .sev-Critical { color: var(--crit); font-weight: 600; }
+  .sev-High { color: var(--high); }
+  .sev-Medium { color: var(--med); }
+  .via { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: 6px; }
+
+  tr.detail { display: none; }
+  tr.detail.open { display: table-row; }
+  tr.detail td { background: #fafbfc; padding: 4px 14px 14px 36px; }
+  .detail h4 { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; margin: 12px 0 5px; }
+  .detail pre {
+    margin: 0; background: var(--panel); border: 1px solid var(--border2);
+    border-radius: 2px; padding: 9px 11px; font: 12.5px/1.5 var(--mono);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .detail .note { color: var(--muted); font-style: italic; margin: 6px 0 0; }
+  .detail .viol { font-family: var(--mono); font-size: 12px; padding: 6px 9px; background: var(--panel); border: 1px solid var(--border2); border-radius: 2px; margin-bottom: 5px; }
+
+  /* status bar */
+  .statusbar {
+    position: sticky; bottom: 0; background: var(--head); border-top: 1px solid var(--border);
+    padding: 6px 12px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px;
+  }
+  .statusbar code { font-family: var(--mono); color: var(--text); }
+  .spin {
+    width: 11px; height: 11px; border: 2px solid #cfcfcf; border-top-color: var(--accent);
+    border-radius: 50%; animation: s .7s linear infinite;
+  }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .muted-row td { color: var(--muted); padding: 14px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <span class="name">FoolTheBot</span>
+</div>
+
+<div class="toolbar">
+  <div class="tb-group">
+    <label for="target">Target:</label>
+    <select id="target"></select>
+  </div>
+  <div class="tb-group">
+    <label for="model">Model:</label>
+    <select id="model"><option value="">default</option></select>
+  </div>
+  <div class="tb-group" id="judgeField">
+    <label for="judge">Judge:</label>
+    <select id="judge">
+      <option value="off">off</option>
+      <option value="mock">mock</option>
+      <option value="llm">llm (Ollama)</option>
+    </select>
+  </div>
+  <div class="tb-group check">
+    <input type="checkbox" id="report">
+    <label for="report">Save report</label>
+  </div>
+  <div class="tb-sep"></div>
+  <button class="run" id="runBtn">Run probes</button>
+</div>
+
+<div class="content">
+  <div class="stats" id="stats" style="display:none">
+    <div class="tile"><div class="v" id="rateNum">—</div><div class="k">Pass rate</div></div>
+    <div class="tile"><div class="v" id="tHeld">—</div><div class="k">Held</div></div>
+    <div class="tile"><div class="v" id="tBroke">—</div><div class="k" id="tBrokeK">Failed</div></div>
+    <div class="tile"><div class="v" id="tTotal">—</div><div class="k">Probes</div></div>
+  </div>
+
+  <div class="panel" id="summary" style="display:none">
+    <div class="ph">Results by category</div>
+    <div class="cats" id="cats"></div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">Probe results</div>
+    <table>
+      <thead>
+        <tr>
+          <th class="c-tw"></th><th class="c-id">ID</th><th class="c-cat">Category</th>
+          <th class="c-sev">Severity</th><th class="c-verdict">Verdict</th><th class="c-detail">Detail</th>
+        </tr>
+      </thead>
+      <tbody id="results">
+        <tr class="muted-row"><td colspan="6">Select a target and click <b>Run probes</b>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="statusbar">
+  <span id="status">Ready.</span>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let targetsByName = {};
+
+async function loadTargets() {
+  const res = await fetch("/api/targets");
+  const data = await res.json();
+  const sel = $("target");
+  sel.innerHTML = "";
+  (data.targets || []).forEach(t => {
+    targetsByName[t.name] = t;
+    const opt = document.createElement("option");
+    opt.value = t.name;
+    opt.textContent = t.label + (t.authorized ? "" : "  (not authorized)");
+    opt.disabled = !t.authorized;
+    sel.appendChild(opt);
+  });
+  syncMode();
+}
+
+async function loadModels() {
+  try {
+    const data = await (await fetch("/api/models")).json();
+    const sel = $("model");
+    const current = sel.value;
+    sel.innerHTML = '<option value="">default (llama3.2)</option>';
+    (data.models || []).forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m; opt.textContent = m;
+      sel.appendChild(opt);
+    });
+    if (!data.ollama) {
+      sel.innerHTML = '<option value="">mock (Ollama not running)</option>';
+    }
+    sel.value = current;
+  } catch (_) {}
+}
+
+function syncMode() {
+  const t = targetsByName[$("target").value];
+  if (!t) return;
+  $("judgeField").style.opacity = t.mode === "action" ? ".45" : "1";
+  $("judge").disabled = t.mode === "action";
+}
+
+function esc(s) {
+  return (s == null ? "" : String(s))
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+const vClass = (v) => v === "PASS" ? "pass" : v === "SUSPECT" ? "suspect" : "fail";
+
+function actionsText(actions) {
+  if (!actions || !actions.length) return "(no actions taken)";
+  return actions.map(a => {
+    const args = Object.entries(a.args || {})
+      .map(([k, v]) => `${k}=${JSON.stringify(v).slice(0, 80)}`).join(", ");
+    return `${a.step}. ${a.tool}(${args})`;
+  }).join("\n");
+}
+
+function detailBody(r, mode) {
+  let body = "";
+  if (r.note) body += `<p class="note">${esc(r.note)}</p>`;
+  if (mode === "action") {
+    body += `<h4>Task given to the agent</h4><pre>${esc(r.probe)}</pre>`;
+    body += `<h4>Actions the agent took</h4><pre>${esc(actionsText(r.actions))}</pre>`;
+    if (r.violations && r.violations.length) {
+      body += `<h4>Policy violations</h4>`;
+      r.violations.forEach(v => {
+        body += `<div class="viol"><span class="sev-${v.severity}">${v.severity}</span> &middot; ${esc(v.rule)} &middot; step ${v.step}: ${esc(v.detail)}</div>`;
+      });
+    }
+  } else {
+    body += `<h4>Input sent</h4><pre>${esc(r.probe)}</pre>`;
+    body += `<h4>Reply received</h4><pre>${esc(r.reply)}</pre>`;
+    if (r.evidence) body += `<h4>Evidence</h4><pre>${esc(r.evidence)}</pre>`;
+    if (r.judge_verdict) body += `<h4>Judge</h4><pre>${esc(r.judge_verdict)} — ${esc(r.judge_reason)}</pre>`;
+  }
+  return body;
+}
+
+function addRow(index, r, mode) {
+  const tb = $("results");
+  const sev = (mode === "action" && r.severity)
+    ? `<span class="sevtag sev-${r.severity}">${r.severity}</span>` : "";
+  const via = r.context_file
+    ? `<span class="via">via ${esc(r.context_file.split("/").pop())}</span>` : "";
+
+  const tr = document.createElement("tr");
+  tr.className = "row";
+  tr.innerHTML = `
+    <td class="c-tw">${index}</td>
+    <td class="c-id">${esc(r.id)}</td>
+    <td class="c-cat">${esc(r.category)}${via}</td>
+    <td class="c-sev">${sev}</td>
+    <td class="c-verdict"><span class="vd ${vClass(r.verdict)}"><span class="sq"></span>${r.verdict}</span></td>
+    <td class="c-detail">${esc(r.reason || "")}</td>`;
+
+  const dtr = document.createElement("tr");
+  dtr.className = "detail";
+  dtr.innerHTML = `<td colspan="6">${detailBody(r, mode)}</td>`;
+
+  tr.addEventListener("click", () => dtr.classList.toggle("open"));
+  tb.appendChild(tr);
+  tb.appendChild(dtr);
+}
+
+function renderSummary(summary, mode) {
+  const counts = summary.counts;
+  const rate = Math.round(summary.pass_rate * 100);
+  $("rateNum").textContent = rate + "%";
+  $("rateNum").style.color = rate >= 90 ? "var(--pass)" : rate >= 50 ? "var(--suspect)" : "var(--fail)";
+  $("tHeld").textContent = counts.PASS + "/" + summary.total;
+  $("tTotal").textContent = summary.total;
+  if (mode === "action") {
+    $("tBrokeK").textContent = "Violated";
+    $("tBroke").textContent = counts.FAIL;
+  } else {
+    $("tBrokeK").textContent = "Leaked";
+    $("tBroke").textContent = counts.FAIL;
+  }
+  $("tBroke").style.color = counts.FAIL ? "var(--fail)" : "var(--text)";
+  $("stats").style.display = "flex";
+
+  const cats = $("cats");
+  cats.innerHTML = "";
+  Object.entries(summary.by_category).forEach(([name, b]) => {
+    const tot = b.PASS + b.FAIL + b.SUSPECT;
+    const pct = tot ? Math.round(b.PASS / tot * 100) : 0;
+    const color = pct >= 90 ? "var(--pass)" : pct >= 50 ? "var(--suspect)" : "var(--fail)";
+    const row = document.createElement("div");
+    row.className = "cat";
+    row.innerHTML = `
+      <span class="name">${esc(name.replace(/_/g, " "))}</span>
+      <span class="bar"><span style="width:${pct}%;background:${color}"></span></span>
+      <span class="frac">${b.PASS}/${tot}</span>`;
+    cats.appendChild(row);
+  });
+  $("summary").style.display = "block";
+}
+
+let es = null;
+
+function run() {
+  if (es) es.close();
+  const target = $("target").value;
+  const judge = $("judge").value;
+  const model = $("model").value;
+  const report = $("report").checked ? "1" : "0";
+  const mode = targetsByName[target].mode;
+
+  $("results").innerHTML = "";
+  $("summary").style.display = "none";
+  $("stats").style.display = "none";
+  $("runBtn").disabled = true;
+  $("status").innerHTML = `<span class="spin"></span> Starting…`;
+
+  const url = `/api/run-stream?target=${encodeURIComponent(target)}&judge=${judge}`
+            + `&model=${encodeURIComponent(model)}&report=${report}`;
+  es = new EventSource(url);
+  let total = 0, done = 0;
+
+  es.addEventListener("start", (e) => {
+    const d = JSON.parse(e.data);
+    total = d.total;
+    $("status").innerHTML = `<span class="spin"></span> Running ${total} probes against ${esc(d.label)}…`;
+  });
+
+  es.addEventListener("result", (e) => {
+    const d = JSON.parse(e.data);
+    done++;
+    addRow(d.index, d.result, mode);
+    $("status").innerHTML = `<span class="spin"></span> ${done} / ${total} probes…`;
+  });
+
+  es.addEventListener("summary", (e) => {
+    const d = JSON.parse(e.data);
+    renderSummary(d.summary, d.mode);
+    let msg = `Done. ${done} probes completed.`;
+    if (d.report_path) msg += `  Report saved: <code>${esc(d.report_path)}</code>`;
+    $("status").innerHTML = msg;
+    $("runBtn").disabled = false;
+    es.close();
+  });
+
+  es.addEventListener("error", (e) => {
+    let m = "connection error";
+    try { m = JSON.parse(e.data).message; } catch (_) {}
+    $("status").textContent = "Error: " + m;
+    $("runBtn").disabled = false;
+    if (es) es.close();
+  });
+}
+
+$("target").addEventListener("change", syncMode);
+$("runBtn").addEventListener("click", run);
+loadTargets();
+loadModels();
+</script>
+</body>
+</html>

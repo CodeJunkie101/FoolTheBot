@@ -1,0 +1,69 @@
+{
+  "description": "Target definitions for the harness. 'local' is the built-in practice bot and is the default. The others are templates showing how to point the harness at an HTTP endpoint you own or are explicitly authorized to test.",
+
+  "targets": {
+    "local": {
+      "type": "builtin",
+      "label": "SupportBot (local practice chatbot)",
+      "authorized": true
+    },
+
+    "agent_lab": {
+      "type": "agent",
+      "label": "OfficeAgent (local sandbox agent)",
+      "authorized": true
+    },
+
+    "local_hardened": {
+      "type": "builtin",
+      "label": "SupportBot + defenses (hardened chatbot)",
+      "hardened": true,
+      "authorized": true
+    },
+
+    "agent_hardened": {
+      "type": "agent",
+      "label": "OfficeAgent + defenses (hardened agent)",
+      "hardened": true,
+      "authorized": true
+    },
+
+    "example_http": {
+      "type": "http",
+      "label": "Example chatbot API (template — edit before use)",
+      "authorized": false,
+      "url": "http://localhost:8000/chat",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "message": "{{PROBE}}",
+        "session_id": "harness-run"
+      },
+      "reply_path": "reply",
+      "secret": "REPLACE-WITH-THE-VALUE-THIS-BOT-SHOULD-PROTECT"
+    },
+
+    "example_openai_style": {
+      "type": "http",
+      "label": "OpenAI-compatible endpoint (template — edit before use)",
+      "authorized": false,
+      "url": "http://localhost:11434/v1/chat/completions",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer ${API_KEY}"
+      },
+      "body": {
+        "model": "llama3.2",
+        "messages": [
+          { "role": "user", "content": "{{PROBE}}" }
+        ],
+        "stream": false
+      },
+      "reply_path": "choices.0.message.content",
+      "secret": "REPLACE-WITH-THE-VALUE-THIS-BOT-SHOULD-PROTECT"
+    }
+  }
+}
